@@ -1,15 +1,18 @@
 package jsongo
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type JsonValueType uint8
 
 const (
 	JVT_NONE JsonValueType = iota
 	JVT_STRING
-	// JVT_INTEGER
-	// JVT_FLOAT
-	// JVT_BOOLEAN
+	JVT_INTEGER
+	JVT_FLOAT
+	JVT_BOOLEAN
 	// JVT_NULL
 	// JVT_OBJECT
 	// JVT_ARRAY
@@ -21,12 +24,12 @@ func (jvt JsonValueType) String() string {
 		return "JVT_NONE"
 	case JVT_STRING:
 		return "JVT_STRING"
-	// case JVT_INTEGER:
-	// 	return "JVT_INTEGER"
-	// case JVT_FLOAT:
-	// 	return "JVT_FLOAT"
-	// case JVT_BOOLEAN:
-	// 	return "JVT_BOOLEAN"
+	case JVT_INTEGER:
+		return "JVT_INTEGER"
+	case JVT_FLOAT:
+		return "JVT_FLOAT"
+	case JVT_BOOLEAN:
+		return "JVT_BOOLEAN"
 	// case JVT_NULL:
 	// 	return "JVT_NULL"
 	// case JVT_OBJECT:
@@ -108,6 +111,23 @@ func parseObject(jt *JsonTokenizer, json *Json) error {
 			switch token.Type {
 			case JTT_STRING:
 				json.Data[key] = token.Value
+			case JTT_INTEGER:
+				json.Data[key], err = strconv.ParseInt(token.Value, 10, 64)
+				if err != nil {
+					return err
+				}
+			case JTT_FLOAT:
+				json.Data[key], err = strconv.ParseFloat(token.Value, 64)
+				if err != nil {
+					return err
+				}
+			case JTT_BOOLEAN:
+				json.Data[key], err = strconv.ParseBool(token.Value)
+				if err != nil {
+					return err
+				}
+			case JTT_NULL:
+				json.Data[key] = nil
 			default:
 				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 			}

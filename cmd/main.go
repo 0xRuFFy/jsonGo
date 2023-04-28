@@ -6,7 +6,7 @@ import (
 	jsongo "github.com/0xRuFFy/jsonGo"
 )
 
-const FILE = "./testdata/level_2.json"
+const FILE = "./testdata/level_3.json"
 
 func main() {
 	tokenizer, err := jsongo.NewJsonTokenizer(FILE)

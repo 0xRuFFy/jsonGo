@@ -3,6 +3,7 @@ package jsongo
 import (
 	"fmt"
 	"os"
+	"strings"
 	"unicode"
 )
 
@@ -11,10 +12,10 @@ type JsonTokenType uint8
 const (
 	JTT_NONE JsonTokenType = iota
 	JTT_STRING
-	// JTT_INTEGER
-	// JTT_FLOAT
-	// JTT_BOOLEAN
-	// JTT_NULL
+	JTT_INTEGER
+	JTT_FLOAT
+	JTT_BOOLEAN
+	JTT_NULL
 	JTT_LBRACE
 	JTT_RBRACE
 	// JTT_LBRACKET
@@ -30,14 +31,14 @@ func (jtt JsonTokenType) String() string {
 		return "JTT_NONE"
 	case JTT_STRING:
 		return "JTT_STRING"
-	// case JTT_INTEGER:
-	// 	return "JTT_INTEGER"
-	// case JTT_FLOAT:
-	// 	return "JTT_FLOAT"
-	// case JTT_BOOLEAN:
-	// 	return "JTT_BOOLEAN"
-	// case JTT_NULL:
-	// 	return "JTT_NULL"
+	case JTT_INTEGER:
+		return "JTT_INTEGER"
+	case JTT_FLOAT:
+		return "JTT_FLOAT"
+	case JTT_BOOLEAN:
+		return "JTT_BOOLEAN"
+	case JTT_NULL:
+		return "JTT_NULL"
 	case JTT_LBRACE:
 		return "JTT_LBRACE"
 	case JTT_RBRACE:
@@ -63,7 +64,7 @@ type Location struct {
 }
 
 func (l Location) String() string {
-	return fmt.Sprintf("<%6d:%4d>", l.Line, l.Column)
+	return fmt.Sprintf("<%d:%d>", l.Line, l.Column)
 }
 
 type JsonToken struct {
@@ -158,6 +159,81 @@ func (jt *JsonTokenizer) consumeString() (string, bool) {
 	return string(str), true
 }
 
+func isValidNumberStart(c byte) bool {
+	return unicode.IsDigit(rune(c))
+}
+
+func isValidNumber(c byte) bool {
+	return unicode.IsDigit(rune(c)) || c == '.'
+}
+
+func (jt *JsonTokenizer) consumeNumber() (string, bool, bool) { // value, isFloat, ok
+	c, ok := jt.peekChar()
+	if !ok {
+		return "", false, false
+	}
+
+	var str []byte
+	isFloat := false
+	for ok && isValidNumber(c) {
+		if c == '.' {
+			if isFloat {
+				return "", false, false
+			}
+			isFloat = true
+		}
+		str = append(str, c)
+		jt.consumeChar()
+		c, ok = jt.peekChar()
+	}
+
+	return string(str), isFloat, true
+}
+
+func (jt *JsonTokenizer) consumeBool() (string, bool) {
+	c, ok := jt.peekChar()
+	if !ok {
+		return "", false
+	}
+
+	var str []byte
+	for ok && unicode.IsLetter(rune(c)) {
+		str = append(str, c)
+		jt.consumeChar()
+		c, ok = jt.peekChar()
+	}
+
+	_str := strings.ToLower(string(str))
+
+	if _str == "true" || _str == "false" {
+		return string(str), true
+	}
+
+	return "", false
+}
+
+func (jt *JsonTokenizer) consumeNull() (string, bool) {
+	c, ok := jt.peekChar()
+	if !ok {
+		return "", false
+	}
+
+	var str []byte
+	for ok && unicode.IsLetter(rune(c)) {
+		str = append(str, c)
+		jt.consumeChar()
+		c, ok = jt.peekChar()
+	}
+
+	_str := strings.ToLower(string(str))
+
+	if _str == "null" {
+		return string(str), true
+	}
+
+	return "", false
+}
+
 func (jt *JsonTokenizer) consumeSingleCharToken(char byte, token *JsonToken) {
 	jt.consumeChar()
 	token.Value = string(char)
@@ -205,7 +281,34 @@ func (jt *JsonTokenizer) NextToken() (*JsonToken, error) {
 	case '{', '}', '[', ']', ',', ':':
 		jt.consumeSingleCharToken(c, token)
 	default:
-		return nil, fmt.Errorf("invalid token at line %d, column %d : [%c]", jt.Line, jt.Column, c)
+		if isValidNumberStart(c) {
+			consumed, isFloat, ok := jt.consumeNumber()
+			if !ok {
+				return nil, fmt.Errorf("invalid Token at line %d, column %d", jt.Line, jt.Column)
+			}
+			token.Value = consumed
+			if isFloat {
+				token.Type = JTT_FLOAT
+			} else {
+				token.Type = JTT_INTEGER
+			}
+		} else if c == 't' || c == 'f' {
+			consumed, ok := jt.consumeBool()
+			if !ok {
+				return nil, fmt.Errorf("invalid Token at line %d, column %d", jt.Line, jt.Column)
+			}
+			token.Value = consumed
+			token.Type = JTT_BOOLEAN
+		} else if c == 'n' {
+			consumed, ok := jt.consumeNull()
+			if !ok {
+				return nil, fmt.Errorf("invalid null at line %d, column %d", jt.Line, jt.Column)
+			}
+			token.Value = consumed
+			token.Type = JTT_NULL
+		} else {
+			return nil, fmt.Errorf("invalid token at line %d, column %d : [%c]", jt.Line, jt.Column, c)
+		}
 	}
 
 	return token, nil
