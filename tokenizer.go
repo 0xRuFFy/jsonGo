@@ -18,11 +18,11 @@ const (
 	_JTT_NULL
 	_JTT_LBRACE
 	_JTT_RBRACE
-	// JTT_LBRACKET
-	// JTT_RBRACKET
+	_JTT_LBRACKET
+	_JTT_RBRACKET
 	_JTT_COMMA
 	_JTT_COLON
-	_JTT_EOF
+	JTT_EOF
 )
 
 func (jtt _JsonTokenType) String() string {
@@ -43,15 +43,15 @@ func (jtt _JsonTokenType) String() string {
 		return "JTT_LBRACE"
 	case _JTT_RBRACE:
 		return "JTT_RBRACE"
-	// case JTT_LBRACKET:
-	// 	return "JTT_LBRACKET"
-	// case JTT_RBRACKET:
-	// 	return "JTT_RBRACKET"
+	case _JTT_LBRACKET:
+		return "JTT_LBRACKET"
+	case _JTT_RBRACKET:
+		return "JTT_RBRACKET"
 	case _JTT_COMMA:
 		return "JTT_COMMA"
 	case _JTT_COLON:
 		return "JTT_COLON"
-	case _JTT_EOF:
+	case JTT_EOF:
 		return "JTT_EOF"
 	default:
 		return "UNKNOWN"
@@ -162,8 +162,23 @@ func (jt *jsonTokenizer) consumeString() (string, bool) {
 
 	// consume until next '"'
 	c, ok = jt.consumeChar()
+	escape := false
 	var str []byte
-	for ok && c != '"' {
+	for {
+
+		if !ok {
+			return "", false
+		}
+		if c == '"' && !escape {
+			break
+		}
+		if c == '\\' && !escape {
+			escape = true
+			c, ok = jt.consumeChar()
+			continue
+		}
+		escape = false
+
 		str = append(str, c)
 		c, ok = jt.consumeChar()
 	}
@@ -254,10 +269,10 @@ func (jt *jsonTokenizer) consumeSingleCharToken(char byte, token *jsonToken) {
 		token.Type = _JTT_LBRACE
 	case '}':
 		token.Type = _JTT_RBRACE
-	// case '[':
-	// 	token.Type = JTT_LBRACKET
-	// case ']':
-	// 	token.Type = JTT_RBRACKET
+	case '[':
+		token.Type = _JTT_LBRACKET
+	case ']':
+		token.Type = _JTT_RBRACKET
 	case ',':
 		token.Type = _JTT_COMMA
 	case ':':
@@ -278,7 +293,7 @@ func (jt *jsonTokenizer) NextToken() (*jsonToken, error) {
 	c, ok := jt.peekChar()
 
 	if !ok {
-		token.Type = _JTT_EOF
+		token.Type = JTT_EOF
 		return token, nil
 	}
 

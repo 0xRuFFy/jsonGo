@@ -19,7 +19,7 @@ func baseParse(jt *jsonTokenizer) (*Json, error) {
 		return nil, err
 	}
 
-	for jt.CurrentToken.Type != _JTT_EOF {
+	for jt.CurrentToken.Type != JTT_EOF {
 		err = parseObject(jt, &json.Data)
 		if err != nil {
 			return nil, err
@@ -47,6 +47,112 @@ func ParseFile(fileName string) (*Json, error) {
 	return baseParse(tokenizer)
 }
 
+func parseArray(jt *jsonTokenizer, data *[]interface{}) error {
+
+	if jt.CurrentToken.Type != _JTT_LBRACKET {
+		return fmt.Errorf("expected '[' got '%s' (%s) at %s", jt.CurrentToken.Value, jt.CurrentToken.Type.String(), jt.CurrentToken.Location.String())
+	}
+
+	token, err := jt.NextToken()
+	if err != nil {
+		return err
+	}
+
+	needValue := true
+	needComma := false
+	needRBracket := false
+
+	for token.Type != _JTT_RBRACKET && token.Type != JTT_EOF {
+		if needValue {
+			switch token.Type {
+			case _JTT_STRING:
+				*data = append(*data, token.Value)
+				needValue = false
+				needComma = true
+				needRBracket = true
+			case _JTT_INTEGER:
+				value, err := strconv.ParseInt(token.Value, 10, 64)
+				if err != nil {
+					return err
+				}
+				*data = append(*data, value)
+				needValue = false
+				needComma = true
+				needRBracket = true
+			case _JTT_FLOAT:
+				value, err := strconv.ParseFloat(token.Value, 64)
+				if err != nil {
+					return err
+				}
+				*data = append(*data, value)
+				needValue = false
+				needComma = true
+				needRBracket = true
+			case _JTT_BOOLEAN:
+				value, err := strconv.ParseBool(token.Value)
+				if err != nil {
+					return err
+				}
+				*data = append(*data, value)
+				needValue = false
+				needComma = true
+				needRBracket = true
+			case _JTT_NULL:
+				*data = append(*data, nil)
+				needValue = false
+				needComma = true
+				needRBracket = true
+			case _JTT_LBRACE:
+				value := make(map[string]interface{})
+				err = parseObject(jt, &value)
+				if err != nil {
+					return err
+				}
+				*data = append(*data, value)
+				needValue = false
+				needComma = true
+				needRBracket = true
+				token = jt.CurrentToken
+				continue
+			case _JTT_LBRACKET:
+				value := make([]interface{}, 0)
+				err = parseArray(jt, &value)
+				if err != nil {
+					return err
+				}
+				*data = append(*data, value)
+				needValue = false
+				needComma = true
+				needRBracket = true
+			default:
+				return fmt.Errorf("expected VALUE got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
+			}
+		} else if needComma {
+			if token.Type != _JTT_COMMA {
+				return fmt.Errorf("expected ',' got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
+			}
+			needValue = true
+			needComma = false
+			needRBracket = false
+		} else if needRBracket {
+			if token.Type != _JTT_RBRACKET {
+				return fmt.Errorf("expected ']' got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
+			}
+			needValue = false
+			needComma = false
+			needRBracket = false
+		}
+
+		token, err = jt.NextToken()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
 func parseObject(jt *jsonTokenizer, data *map[string]interface{}) error {
 	if jt.CurrentToken.Type != _JTT_LBRACE {
 		return fmt.Errorf("expected '{' got '%s' (%s) at %s", jt.CurrentToken.Value, jt.CurrentToken.Type.String(), jt.CurrentToken.Location.String())
@@ -62,9 +168,9 @@ func parseObject(jt *jsonTokenizer, data *map[string]interface{}) error {
 	needValue := false
 	needColon := false
 	needComma := false
-	needRBrace := false
+	needRBrace := true
 
-	for token.Type != _JTT_RBRACE && token.Type != _JTT_EOF {
+	for token.Type != _JTT_RBRACE && token.Type != JTT_EOF {
 		if needKey {
 			if token.Type != _JTT_STRING {
 				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
@@ -112,8 +218,22 @@ func parseObject(jt *jsonTokenizer, data *map[string]interface{}) error {
 					return err
 				}
 				(*data)[key] = subdata
+				token = jt.CurrentToken
+				needKey = false
+				needValue = false
+				needColon = false
+				needComma = true
+				needRBrace = true
+				continue
+			case _JTT_LBRACKET:
+				subdata := make([]interface{}, 0)
+				err = parseArray(jt, &subdata)
+				if err != nil {
+					return err
+				}
+				(*data)[key] = subdata
 			default:
-				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
+				return fmt.Errorf("expected Value got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 			}
 			needKey = false
 			needValue = false
