@@ -6,8 +6,10 @@ import (
 	jsongo "github.com/0xRuFFy/jsonGo"
 )
 
+const FILE = "./testdata/level_2.json"
+
 func main() {
-	tokenizer, err := jsongo.NewJsonTokenizer("./testdata/level_1.json")
+	tokenizer, err := jsongo.NewJsonTokenizer(FILE)
 	if err != nil {
 		panic(err)
 	}
@@ -26,7 +28,7 @@ func main() {
 	// 	}
 	// }
 
-	json, err := jsongo.ParseFile("./testdata/level_1.json")
+	json, err := jsongo.ParseFile(FILE)
 	if err != nil {
 		panic(err)
 	}

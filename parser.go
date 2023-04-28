@@ -69,7 +69,7 @@ func ParseFile(fileName string) (*Json, error) {
 
 func parseObject(jt *JsonTokenizer, json *Json) error {
 	if jt.CurrentToken.Type != JTT_LBRACE {
-		return fmt.Errorf("expected '{' got '%s' at %s (%s)", jt.CurrentToken.Value, jt.CurrentToken.Type.String(), jt.CurrentToken.Location.String())
+		return fmt.Errorf("expected '{' got '%s' (%s) at %s", jt.CurrentToken.Value, jt.CurrentToken.Type.String(), jt.CurrentToken.Location.String())
 	}
 
 	token, err := jt.NextToken()
@@ -81,34 +81,52 @@ func parseObject(jt *JsonTokenizer, json *Json) error {
 	needKey := true
 	needValue := false
 	needColon := false
-	// needComma := false
+	needComma := false
 	needRBrace := false
 
 	for token.Type != JTT_RBRACE {
 		if needKey {
 			if token.Type != JTT_STRING {
-				return fmt.Errorf("expected STRING got '%s' at %s (%s)", token.Value, token.Type.String(), token.Location.String())
+				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 			}
 			key = token.Value
 			needKey = false
+			needValue = false
 			needColon = true
+			needComma = false
+			needRBrace = false
 		} else if needColon {
 			if token.Type != JTT_COLON {
-				return fmt.Errorf("expected ':' got '%s' at %s (%s)", token.Value, token.Type.String(), token.Location.String())
+				return fmt.Errorf("expected ':' got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 			}
-			needColon = false
+			needKey = false
 			needValue = true
+			needColon = false
+			needComma = false
+			needRBrace = false
 		} else if needValue {
 			switch token.Type {
 			case JTT_STRING:
 				json.Data[key] = token.Value
 			default:
-				return fmt.Errorf("expected STRING got '%s' at %s (%s)", token.Value, token.Type.String(), token.Location.String())
+				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 			}
+			needKey = false
 			needValue = false
+			needColon = false
+			needComma = true
 			needRBrace = true
+		} else if needComma {
+			if token.Type != JTT_COMMA {
+				return fmt.Errorf("expected ',' got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
+			}
+			needKey = true
+			needValue = false
+			needColon = false
+			needComma = false
+			needRBrace = false
 		} else if needRBrace {
-			return fmt.Errorf("expected '}' got '%s' at %s (%s)", token.Value, token.Type.String(), token.Location.String())
+			return fmt.Errorf("expected '}' got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 		}
 
 		token, err = jt.NextToken()
@@ -118,7 +136,7 @@ func parseObject(jt *JsonTokenizer, json *Json) error {
 	}
 
 	if !needRBrace {
-		return fmt.Errorf("expected '}' got '%s' at %s (%s)", token.Value, token.Type.String(), token.Location.String())
+		return fmt.Errorf("did not expected '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 	} else {
 		_, err = jt.NextToken()
 		if err != nil {
