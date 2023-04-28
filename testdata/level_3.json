@@ -1,5 +1,8 @@
 {
     "first": "John",
     "second": "Doe",
-    "age": 25
+    "age": 25,
+    "height": 1.75,
+    "alive": true,
+    "location": null
 }
