@@ -7,93 +7,93 @@ import (
 	"unicode"
 )
 
-type JsonTokenType uint8
+type _JsonTokenType uint8
 
 const (
-	JTT_NONE JsonTokenType = iota
-	JTT_STRING
-	JTT_INTEGER
-	JTT_FLOAT
-	JTT_BOOLEAN
-	JTT_NULL
-	JTT_LBRACE
-	JTT_RBRACE
+	_JTT_NONE _JsonTokenType = iota
+	_JTT_STRING
+	_JTT_INTEGER
+	_JTT_FLOAT
+	_JTT_BOOLEAN
+	_JTT_NULL
+	_JTT_LBRACE
+	_JTT_RBRACE
 	// JTT_LBRACKET
 	// JTT_RBRACKET
-	JTT_COMMA
-	JTT_COLON
-	JTT_EOF
+	_JTT_COMMA
+	_JTT_COLON
+	_JTT_EOF
 )
 
-func (jtt JsonTokenType) String() string {
+func (jtt _JsonTokenType) String() string {
 	switch jtt {
-	case JTT_NONE:
+	case _JTT_NONE:
 		return "JTT_NONE"
-	case JTT_STRING:
+	case _JTT_STRING:
 		return "JTT_STRING"
-	case JTT_INTEGER:
+	case _JTT_INTEGER:
 		return "JTT_INTEGER"
-	case JTT_FLOAT:
+	case _JTT_FLOAT:
 		return "JTT_FLOAT"
-	case JTT_BOOLEAN:
+	case _JTT_BOOLEAN:
 		return "JTT_BOOLEAN"
-	case JTT_NULL:
+	case _JTT_NULL:
 		return "JTT_NULL"
-	case JTT_LBRACE:
+	case _JTT_LBRACE:
 		return "JTT_LBRACE"
-	case JTT_RBRACE:
+	case _JTT_RBRACE:
 		return "JTT_RBRACE"
 	// case JTT_LBRACKET:
 	// 	return "JTT_LBRACKET"
 	// case JTT_RBRACKET:
 	// 	return "JTT_RBRACKET"
-	case JTT_COMMA:
+	case _JTT_COMMA:
 		return "JTT_COMMA"
-	case JTT_COLON:
+	case _JTT_COLON:
 		return "JTT_COLON"
-	case JTT_EOF:
+	case _JTT_EOF:
 		return "JTT_EOF"
 	default:
 		return "UNKNOWN"
 	}
 }
 
-type Location struct {
+type location struct {
 	Line   int
 	Column int
 }
 
-func (l Location) String() string {
+func (l location) String() string {
 	return fmt.Sprintf("<%d:%d>", l.Line, l.Column)
 }
 
-type JsonToken struct {
-	Type     JsonTokenType
+type jsonToken struct {
+	Type     _JsonTokenType
 	Value    string
-	Location Location
+	Location location
 }
 
-func (jt *JsonToken) String() string {
+func (jt *jsonToken) String() string {
 	return fmt.Sprintf("[%-15s] ~ %-60s %s", jt.Type.String(), jt.Value, jt.Location.String())
 }
 
-type JsonTokenizer struct {
+type jsonTokenizer struct {
 	FilePath      string
 	FileContent   string
 	ContentLength int
 	Cursor        int
 	Line          int
 	Column        int
-	CurrentToken  *JsonToken
+	CurrentToken  *jsonToken
 }
 
-func NewJsonTokenizer(filePath string) (*JsonTokenizer, error) {
+func newJsonTokenizer(filePath string) (*jsonTokenizer, error) {
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	return &JsonTokenizer{
+	return &jsonTokenizer{
 		FilePath:      filePath,
 		FileContent:   string(bytes),
 		ContentLength: len(bytes),
@@ -103,11 +103,11 @@ func NewJsonTokenizer(filePath string) (*JsonTokenizer, error) {
 	}, nil
 }
 
-func (jt *JsonTokenizer) validCursor() bool {
+func (jt *jsonTokenizer) validCursor() bool {
 	return jt.Cursor < jt.ContentLength
 }
 
-func (jt *JsonTokenizer) consumeChar() (byte, bool) {
+func (jt *jsonTokenizer) consumeChar() (byte, bool) {
 	if jt.validCursor() {
 		c := jt.FileContent[jt.Cursor]
 		jt.Cursor++
@@ -122,7 +122,7 @@ func (jt *JsonTokenizer) consumeChar() (byte, bool) {
 	return 0, false
 }
 
-func (jt *JsonTokenizer) peekChar() (byte, bool) {
+func (jt *jsonTokenizer) peekChar() (byte, bool) {
 	if jt.validCursor() {
 		return jt.FileContent[jt.Cursor], true
 	}
@@ -130,7 +130,7 @@ func (jt *JsonTokenizer) peekChar() (byte, bool) {
 	return 0, false
 }
 
-func (jt *JsonTokenizer) trimLeft() {
+func (jt *jsonTokenizer) trimLeft() {
 	c, ok := jt.peekChar()
 	for ok && unicode.IsSpace(rune(c)) {
 		jt.consumeChar()
@@ -138,7 +138,7 @@ func (jt *JsonTokenizer) trimLeft() {
 	}
 }
 
-func (jt *JsonTokenizer) consumeString() (string, bool) {
+func (jt *jsonTokenizer) consumeString() (string, bool) {
 	// consume and check first char is '"'
 	c, ok := jt.consumeChar()
 	if !ok {
@@ -167,7 +167,7 @@ func isValidNumber(c byte) bool {
 	return unicode.IsDigit(rune(c)) || c == '.'
 }
 
-func (jt *JsonTokenizer) consumeNumber() (string, bool, bool) { // value, isFloat, ok
+func (jt *jsonTokenizer) consumeNumber() (string, bool, bool) { // value, isFloat, ok
 	c, ok := jt.peekChar()
 	if !ok {
 		return "", false, false
@@ -190,7 +190,7 @@ func (jt *JsonTokenizer) consumeNumber() (string, bool, bool) { // value, isFloa
 	return string(str), isFloat, true
 }
 
-func (jt *JsonTokenizer) consumeBool() (string, bool) {
+func (jt *jsonTokenizer) consumeBool() (string, bool) {
 	c, ok := jt.peekChar()
 	if !ok {
 		return "", false
@@ -212,7 +212,7 @@ func (jt *JsonTokenizer) consumeBool() (string, bool) {
 	return "", false
 }
 
-func (jt *JsonTokenizer) consumeNull() (string, bool) {
+func (jt *jsonTokenizer) consumeNull() (string, bool) {
 	c, ok := jt.peekChar()
 	if !ok {
 		return "", false
@@ -234,29 +234,29 @@ func (jt *JsonTokenizer) consumeNull() (string, bool) {
 	return "", false
 }
 
-func (jt *JsonTokenizer) consumeSingleCharToken(char byte, token *JsonToken) {
+func (jt *jsonTokenizer) consumeSingleCharToken(char byte, token *jsonToken) {
 	jt.consumeChar()
 	token.Value = string(char)
 	switch char {
 	case '{':
-		token.Type = JTT_LBRACE
+		token.Type = _JTT_LBRACE
 	case '}':
-		token.Type = JTT_RBRACE
+		token.Type = _JTT_RBRACE
 	// case '[':
 	// 	token.Type = JTT_LBRACKET
 	// case ']':
 	// 	token.Type = JTT_RBRACKET
 	case ',':
-		token.Type = JTT_COMMA
+		token.Type = _JTT_COMMA
 	case ':':
-		token.Type = JTT_COLON
+		token.Type = _JTT_COLON
 	}
 }
 
-func (jt *JsonTokenizer) NextToken() (*JsonToken, error) {
+func (jt *jsonTokenizer) NextToken() (*jsonToken, error) {
 	jt.trimLeft()
-	token := &JsonToken{
-		Location: Location{
+	token := &jsonToken{
+		Location: location{
 			Line:   jt.Line,
 			Column: jt.Column,
 		},
@@ -266,13 +266,13 @@ func (jt *JsonTokenizer) NextToken() (*JsonToken, error) {
 	c, ok := jt.peekChar()
 
 	if !ok {
-		token.Type = JTT_EOF
+		token.Type = _JTT_EOF
 		return token, nil
 	}
 
 	switch c {
 	case '"':
-		token.Type = JTT_STRING
+		token.Type = _JTT_STRING
 		token.Value, ok = jt.consumeString()
 		token.Location.Column++
 		if !ok {
@@ -288,9 +288,9 @@ func (jt *JsonTokenizer) NextToken() (*JsonToken, error) {
 			}
 			token.Value = consumed
 			if isFloat {
-				token.Type = JTT_FLOAT
+				token.Type = _JTT_FLOAT
 			} else {
-				token.Type = JTT_INTEGER
+				token.Type = _JTT_INTEGER
 			}
 		} else if c == 't' || c == 'f' {
 			consumed, ok := jt.consumeBool()
@@ -298,14 +298,14 @@ func (jt *JsonTokenizer) NextToken() (*JsonToken, error) {
 				return nil, fmt.Errorf("invalid Token at line %d, column %d", jt.Line, jt.Column)
 			}
 			token.Value = consumed
-			token.Type = JTT_BOOLEAN
+			token.Type = _JTT_BOOLEAN
 		} else if c == 'n' {
 			consumed, ok := jt.consumeNull()
 			if !ok {
 				return nil, fmt.Errorf("invalid null at line %d, column %d", jt.Line, jt.Column)
 			}
 			token.Value = consumed
-			token.Type = JTT_NULL
+			token.Type = _JTT_NULL
 		} else {
 			return nil, fmt.Errorf("invalid token at line %d, column %d : [%c]", jt.Line, jt.Column, c)
 		}
