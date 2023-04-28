@@ -1,0 +1,22 @@
+{
+    "first": "\"John\"",
+    "second": "Doe",
+    "vitamins": ["A", "B", "C", "D", "E", "K", {
+        "name": "Folic Acid",
+        "amount": "400 mcg"
+        },
+        [
+            "Vitamin B1",
+            "Vitamin B2",
+            "Vitamin B3"
+        ]
+    ],
+    "age": 25,
+    "address": {
+	    "streetAddress": "21 2nd Street",
+	    "city": "New York",
+	    "state": "NY",
+	    "postalCode": "10021"
+    },
+    "emtpy": {}
+}
