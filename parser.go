@@ -9,32 +9,45 @@ type Json struct {
 	Data map[string]interface{}
 }
 
-func ParseFile(fileName string) (*Json, error) {
+func baseParse(jt *jsonTokenizer) (*Json, error) {
 	json := &Json{
 		Data: make(map[string]interface{}),
 	}
 
-	tokenizer, err := newJsonTokenizer(fileName)
+	_, err := jt.NextToken()
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = tokenizer.NextToken()
-	if err != nil {
-		return nil, err
-	}
-
-	for tokenizer.CurrentToken.Type != _JTT_EOF {
-		err = parseObject(tokenizer, json)
+	for jt.CurrentToken.Type != _JTT_EOF {
+		err = parseObject(jt, &json.Data)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return json, err
+	return json, nil
 }
 
-func parseObject(jt *jsonTokenizer, json *Json) error {
+func Parse(str string) (*Json, error) {
+	tokenizer, err := newJsonTokenizerContent(str)
+	if err != nil {
+		return nil, err
+	}
+
+	return baseParse(tokenizer)
+}
+
+func ParseFile(fileName string) (*Json, error) {
+	tokenizer, err := newJsonTokenizer(fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	return baseParse(tokenizer)
+}
+
+func parseObject(jt *jsonTokenizer, data *map[string]interface{}) error {
 	if jt.CurrentToken.Type != _JTT_LBRACE {
 		return fmt.Errorf("expected '{' got '%s' (%s) at %s", jt.CurrentToken.Value, jt.CurrentToken.Type.String(), jt.CurrentToken.Location.String())
 	}
@@ -51,7 +64,7 @@ func parseObject(jt *jsonTokenizer, json *Json) error {
 	needComma := false
 	needRBrace := false
 
-	for token.Type != _JTT_RBRACE {
+	for token.Type != _JTT_RBRACE && token.Type != _JTT_EOF {
 		if needKey {
 			if token.Type != _JTT_STRING {
 				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
@@ -74,24 +87,31 @@ func parseObject(jt *jsonTokenizer, json *Json) error {
 		} else if needValue {
 			switch token.Type {
 			case _JTT_STRING:
-				json.Data[key] = token.Value
+				(*data)[key] = token.Value
 			case _JTT_INTEGER:
-				json.Data[key], err = strconv.ParseInt(token.Value, 10, 64)
+				(*data)[key], err = strconv.ParseInt(token.Value, 10, 64)
 				if err != nil {
 					return err
 				}
 			case _JTT_FLOAT:
-				json.Data[key], err = strconv.ParseFloat(token.Value, 64)
+				(*data)[key], err = strconv.ParseFloat(token.Value, 64)
 				if err != nil {
 					return err
 				}
 			case _JTT_BOOLEAN:
-				json.Data[key], err = strconv.ParseBool(token.Value)
+				(*data)[key], err = strconv.ParseBool(token.Value)
 				if err != nil {
 					return err
 				}
 			case _JTT_NULL:
-				json.Data[key] = nil
+				(*data)[key] = nil
+			case _JTT_LBRACE:
+				subdata := make(map[string]interface{})
+				err = parseObject(jt, &subdata)
+				if err != nil {
+					return err
+				}
+				(*data)[key] = subdata
 			default:
 				return fmt.Errorf("expected STRING got '%s' (%s) at %s", token.Value, token.Type.String(), token.Location.String())
 			}

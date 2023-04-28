@@ -6,7 +6,7 @@ import (
 	jsongo "github.com/0xRuFFy/jsonGo"
 )
 
-const FILE = "./testdata/level_3.json"
+const FILE = "./testdata/level_4.json"
 
 func main() {
 	json, err := jsongo.ParseFile(FILE)

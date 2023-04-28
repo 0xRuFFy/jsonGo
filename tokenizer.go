@@ -87,6 +87,18 @@ type jsonTokenizer struct {
 	CurrentToken  *jsonToken
 }
 
+func newJsonTokenizerContent(content string) (*jsonTokenizer, error) {
+
+	return &jsonTokenizer{
+		FilePath:      "",
+		FileContent:   content,
+		ContentLength: len(content),
+		Cursor:        0,
+		Line:          1,
+		Column:        1,
+	}, nil
+}
+
 func newJsonTokenizer(filePath string) (*jsonTokenizer, error) {
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
